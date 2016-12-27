@@ -50,6 +50,6 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-union_future = "0.1"
+union-future = "0.1"
 futures = "0.1"
 ```

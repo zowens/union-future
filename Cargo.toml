@@ -1,6 +1,6 @@
 [package]
 name = "union-future"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Zack Owens <zowens2009@gmail.com>"]
 description = "Macro that allows easy construction of explicit Future state machines that result from branching"
 repository = "https://github.com/zowens/union-future"
