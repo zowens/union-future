@@ -129,7 +129,7 @@ extern crate futures;
 /// types.
 #[macro_export]
 macro_rules! union_future {
-    ($name:ident<$item:ty, $err:ty>, $($n: tt => $ft: ty),*) => (
+    ($name:ident<$item:ty, $err:ty>, $($n:ident => $ft:ty),*) => (
         pub enum $name {
             $( $n($ft) ),*
         }
