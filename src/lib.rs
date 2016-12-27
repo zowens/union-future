@@ -8,8 +8,8 @@
 //! future drives the polling behavior. The variants of the enum can have different underlying
 //! state machines (types that implement the `Future` trait).
 //!
-//! Additionally, the underlying branch state machines can return *different* result types that are
-//! mapped to the common result type via the `From` trait.
+//! Additionally, the underlying branch state machines can have *different* Item types that are
+//! mapped to the `union_future` future's Item type via the `From` trait.
 //!
 //! Also, as an added bonus, the macro will derive the `From` trait for the underlying state
 //! machines in order to make the branched code clean.
@@ -25,6 +25,10 @@
 //! ```
 //! ## Examples
 //!
+//! The basic usage of the macro uses the same Item type from different underlying
+//! futures. For example, if you have a locally cached version otherwise the code
+//! will query the database:
+//!
 //! ```
 //! #[macro_use]
 //! extern crate union_future;
@@ -34,21 +38,24 @@
 //! use futures::future::*;
 //!
 //!
-//! // Invocation of the macro, which creates the enum and necessary trait impls
+//! // Macro will create the enum and necessary trait implementations
+//! // for the QueryFuture. This enum will have 2 variants: Cached and Db.
 //! union_future!(pub QueryFuture<u64, DbError>,
 //!       Cached => FutureResult<u64, DbError>,
 //!       Db => DbQueryFuture<u64>);
 //!
 //! // Example code that branches, using the future created by the macro
 //! pub fn query(db: &Db, key: &str) -> QueryFuture {
-//!     if let Some(cached_val) = check_cache(key) {
-//!         ok(cached_val).into()
+//!     // this example shows multiple ways the QueryFuture can be constructed:
+//!     // either by the explicit enum variant or by using the From/Into traits
+//!     if let Some(cached_val) = check_local_cache(key) {
+//!         QueryFuture::Cached(ok(cached_val))
 //!     } else {
 //!         query_db(db, key).into()
 //!     }
 //! }
 //!
-//! fn check_cache(key: &str) -> Option<u64> {
+//! fn check_local_cache(key: &str) -> Option<u64> {
 //!     // ...
 //!     # panic!("Unimplemented")
 //! }
@@ -59,9 +66,57 @@
 //! }
 //!
 //! # pub struct DbError {
-//! #     // ...
 //! # }
 //! # pub struct Db {
+//! # }
+//! # pub type DbQueryFuture<T> = Empty<T, DbError>;
+//! # fn main() {}
+//! ```
+//!
+//! You could, however, have a future that can be mapped into the future result type
+//! with the `From` trait:
+//!
+//! ```
+//! # #[macro_use]
+//! # extern crate union_future;
+//! # extern crate futures;
+//! # use futures::*;
+//! # use futures::future::*;
+//! pub enum RedisValue {
+//!     Null,
+//!     Integer(i64),
+//!     Bulk(String),
+//! }
+//!
+//! // Implementing the From trait allows the underlying futures to expose
+//! // different Item types transparently
+//!
+//! impl From<()> for RedisValue {
+//!     fn from(_: ()) -> RedisValue {
+//!         RedisValue::Null
+//!     }
+//! }
+//!
+//! impl From<i64> for RedisValue {
+//!     fn from(other: i64) -> RedisValue {
+//!         RedisValue::Integer(other)
+//!     }
+//! }
+//!
+//! impl From<String> for RedisValue {
+//!     fn from(other: String) -> RedisValue {
+//!         RedisValue::Bulk(other)
+//!     }
+//! }
+//!
+//! union_future!(pub RedisValueFuture<RedisValue, DbError>,
+//!       Pong => FutureResult<(), DbError>,
+//!       IntegerQuery => DbQueryFuture<i64>,
+//!       StringQuery => DbQueryFuture<String>);
+//!
+//! # pub struct DbError {
+//! # }
+//! # pub struct MemDb {
 //! # }
 //! # pub type DbQueryFuture<T> = Empty<T, DbError>;
 //! # fn main() {}
