@@ -40,7 +40,7 @@
 //!
 //! // Macro will create the enum and necessary trait implementations
 //! // for the QueryFuture. This enum will have 2 variants: Cached and Db.
-//! union_future!(pub QueryFuture<u64, DbError>,
+//! union_future!(QueryFuture<u64, DbError>,
 //!       Cached => FutureResult<u64, DbError>,
 //!       Db => DbQueryFuture<u64>);
 //!
@@ -109,7 +109,7 @@
 //!     }
 //! }
 //!
-//! union_future!(pub RedisValueFuture<RedisValue, DbError>,
+//! union_future!(RedisValueFuture<RedisValue, DbError>,
 //!       Pong => FutureResult<(), DbError>,
 //!       IntegerQuery => DbQueryFuture<i64>,
 //!       StringQuery => DbQueryFuture<String>);
@@ -130,37 +130,6 @@ extern crate futures;
 #[macro_export]
 macro_rules! union_future {
     ($name:ident<$item:ty, $err:ty>, $($n: tt => $ft: ty),*) => (
-        enum $name {
-            $( $n($ft) ),*
-        }
-
-        impl futures::Future for $name {
-            type Item = $item;
-            type Error = $err;
-
-            fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-                match *self {
-                    $(
-                        $name::$n(ref mut f) => {
-                            match f.poll() {
-                                Ok(futures::Async::Ready(t)) => Ok(futures::Async::Ready(From::from(t))),
-                                Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
-                                Err(e) => Err(From::from(e)),
-                            }
-                        }
-                        ),*
-                }
-            }
-        }
-
-        $(
-            impl From<$ft> for $name {
-                fn from(other: $ft) -> $name {
-                    $name::$n(other)
-                }
-            })*
-    );
-    (pub $name:ident<$item:ty, $err:ty>, $($n: tt => $ft: ty),*) => (
         pub enum $name {
             $( $n($ft) ),*
         }
@@ -190,8 +159,7 @@ macro_rules! union_future {
                     $name::$n(other)
                 }
             })*
-
-    )
+    );
 }
 
 #[cfg(test)]
@@ -253,41 +221,4 @@ mod tests {
         let mut b: TestFut = ok::<f32, OtherError>(5.25f32).into();
         assert_eq!(Ok(Async::Ready(5.25f64)), b.poll());
     }
-
-    #[test]
-    fn pub_same_types() {
-        union_future!(pub TestFut<u64, Error>,
-                Forever => Empty<u64, Error>,
-                Immediate => FutureResult<u64, Error>);
-
-        let mut a: TestFut = empty::<u64, Error>().into();
-        assert_eq!(Ok(Async::NotReady), a.poll());
-        let mut b: TestFut = ok::<u64, Error>(5).into();
-        assert_eq!(Ok(Async::Ready(5u64)), b.poll());
-    }
-
-    #[test]
-    fn pub_different_item_types() {
-        union_future!(pub TestFut<f64, Error>,
-                Number => FutureResult<u32, Error>,
-                Floating => FutureResult<f32, Error>);
-
-        let mut a: TestFut = ok::<u32, Error>(5u32).into();
-        assert_eq!(Ok(Async::Ready(5f64)), a.poll());
-        let mut b: TestFut = ok::<f32, Error>(5.25f32).into();
-        assert_eq!(Ok(Async::Ready(5.25f64)), b.poll());
-    }
-
-    #[test]
-    fn pub_different_err_types() {
-        union_future!(pub TestFut<f64, Error>,
-                Number => FutureResult<u32, Error>,
-                Floating => FutureResult<f32, OtherError>);
-
-        let mut a: TestFut = ok::<u32, Error>(5u32).into();
-        assert_eq!(Ok(Async::Ready(5f64)), a.poll());
-        let mut b: TestFut = ok::<f32, OtherError>(5.25f32).into();
-        assert_eq!(Ok(Async::Ready(5.25f64)), b.poll());
-    }
 }
-

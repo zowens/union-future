@@ -22,7 +22,7 @@ use futures::future::*;
 
 // Macro will create the enum and necessary trait implementations
 // for the QueryFuture. This enum will have 2 variants: Cached and Db.
-union_future!(pub QueryFuture<u64, DbError>,
+union_future!(QueryFuture<u64, DbError>,
       Cached => FutureResult<u64, DbError>,
       Db => DbQueryFuture<u64>);
 
