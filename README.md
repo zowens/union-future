@@ -4,6 +4,19 @@ When writing asynchronous code with the wonderful [futures](https://github.com/a
 necessary to write code that branches. For example, your code may have an immediate answer _some_ of the time, in which case
 you want to return a future that resolves immediately, or it may need to call the database if an immediate answer is not available.
 
+[Documentation](https://docs.rs/union-future/)
+
+## Installation
+
+First, add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+union-future = "0.1"
+futures = "0.1"
+```
+## Motivation
+
 As discussed in [the tutorial](https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md#trait-objects), there are multiple
 options for this scenario, with the most popular being to create a `BoxedFuture`. There are downsides to this approach, such as runtime
 allocation of the trait object. The `BoxedFuture` approach is popular because it is highly ergonomic (the future trait has a method `.boxed()`
@@ -42,14 +55,4 @@ fn check_local_cache(key: &str) -> Option<u64> {
 fn query_db(db: &Db, key: &str) -> DbQueryFuture<u64> {
     // ...
 }
-```
-
-## Installation
-
-First, add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-union-future = "0.1"
-futures = "0.1"
 ```

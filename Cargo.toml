@@ -3,6 +3,7 @@ name = "union-future"
 version = "0.1.1"
 authors = ["Zack Owens <zowens2009@gmail.com>"]
 description = "Macro that allows easy construction of explicit Future state machines that result from branching"
+documentation = "https://docs.rs/union-future/"
 repository = "https://github.com/zowens/union-future"
 homepage = "https://github.com/zowens/union-future"
 readme = "README.md"
