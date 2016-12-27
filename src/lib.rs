@@ -1,6 +1,6 @@
 //! Explicit and efficient future that results from a branched future.
 //!
-//! The `union_future` macro creates a future derrived from a branch of different underlying
+//! The `union_future` macro creates a future derived from a branch of different underlying
 //! futures. The macro can prevent unnecessary boxing of futures when the code can branch
 //! into multiple future types.
 //!
@@ -14,47 +14,57 @@
 //! Also, as an added bonus, the macro will derive the `From` trait for the underlying state
 //! machines in order to make the branched code clean.
 //!
-//! ```ignore
+//! ## Installation
+//!
+//! Add this to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! union_future = "0.1"
+//! futures = "0.1"
+//! ```
+//! ## Examples
+//!
+//! ```
+//! #[macro_use]
+//! extern crate union_future;
+//! extern crate futures;
+//!
+//! use futures::*;
+//! use futures::future::*;
+//!
+//!
 //! // Invocation of the macro, which creates the enum and necessary trait impls
-//! union_future!(pub MyFuture<Res, DbError>,
-//!       Query => QueryFuture<u64>,
-//!       Update => DbUpdateFuture<()>);
+//! union_future!(pub QueryFuture<u64, DbError>,
+//!       Cached => FutureResult<u64, DbError>,
+//!       Db => DbQueryFuture<u64>);
 //!
 //! // Example code that branches, using the future created by the macro
-//! fn do_operation(db: DB, op: u64) -> MyFuture {
-//!    if op == 0 {
-//!       // query the DB for the number of messages
-//!       //
-//!       // (this example uses the automatically derrived From trait)
-//!       let query_future: QueryFuture<u64> = db.get();
-//!       query_future.into()
-//!    } else {
-//!       // update the DB with the number of the op code
-//!       //
-//!       // (this example uses an explicit enum value)
-//!       let update_future: DbUpdateFuture<()> = db.update(op);
-//!       MyFuture::Update(update_future)
-//!    }
-//! }
-//!
-//! // The example uses the Res type as the item type of the future.
-//! pub enum Res {
-//!    Num(u64),
-//!    Empty
-//! }
-//!
-//! impl From<u64> for Res {
-//!     fn from(v: u64) -> Res {
-//!         Res::Num(v)
+//! pub fn query(db: &Db, key: &str) -> QueryFuture {
+//!     if let Some(cached_val) = check_cache(key) {
+//!         ok(cached_val).into()
+//!     } else {
+//!         query_db(db, key).into()
 //!     }
 //! }
 //!
-//! impl From<()> for Res {
-//!     fn from(v: ()) -> Res {
-//!         Res::Empty
-//!     }
+//! fn check_cache(key: &str) -> Option<u64> {
+//!     // ...
+//!     # panic!("Unimplemented")
 //! }
 //!
+//! fn query_db(db: &Db, key: &str) -> DbQueryFuture<u64> {
+//!     // ...
+//!     # panic!("Unimplemented")
+//! }
+//!
+//! # pub struct DbError {
+//! #     // ...
+//! # }
+//! # pub struct Db {
+//! # }
+//! # pub type DbQueryFuture<T> = Empty<T, DbError>;
+//! # fn main() {}
 //! ```
 
 #[macro_use]
@@ -77,9 +87,11 @@ macro_rules! union_future {
                 match *self {
                     $(
                         $name::$n(ref mut f) => {
-                            let r = try_ready!(f.poll());
-                            Ok(futures::Async::Ready(From::from(r)))
-
+                            match f.poll() {
+                                Ok(futures::Async::Ready(t)) => Ok(futures::Async::Ready(From::from(t))),
+                                Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
+                                Err(e) => Err(From::from(e)),
+                            }
                         }
                         ),*
                 }
@@ -106,9 +118,11 @@ macro_rules! union_future {
                 match *self {
                     $(
                         $name::$n(ref mut f) => {
-                            let r = try_ready!(f.poll());
-                            Ok(futures::Async::Ready(From::from(r)))
-
+                            match f.poll() {
+                                Ok(futures::Async::Ready(t)) => Ok(futures::Async::Ready(From::from(t))),
+                                Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
+                                Err(e) => Err(From::from(e)),
+                            }
                         }
                         ),*
                 }
